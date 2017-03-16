@@ -7,6 +7,7 @@
 #include "event.h"
 #include "connection.h"
 #include "netio.h"
+#include "signal.h"
 
 static int g_ep_fd = -1;
 
@@ -84,7 +85,7 @@ void lq_event_loop(sock) {
     LQ_NOTICE("epoll loop start.");
     struct epoll_event ep_events[20];
     int nfds;
-    for (;;) {
+    while (!lq_check_server_quit()) {
         nfds = epoll_wait(g_ep_fd, ep_events, 20, 5000);
         LQ_DEBUG("epoll_wait returns. nfds[%d]", nfds);
         int i;
@@ -120,6 +121,8 @@ void lq_event_loop(sock) {
             lq_event_del(connection_data->event);
         }
     }
+
+    lq_event_del(event);
 }
 
 

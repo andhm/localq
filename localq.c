@@ -9,6 +9,7 @@
 #include "thread.h"
 #include "event.h"
 #include "queue.h"
+#include "signal.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -36,8 +37,20 @@ int main() {
 	lq_queue_init(100*1024*1024); // 100M
 	
 	lq_event_init(128);
+
+	lq_signals_init();
 	
 	lq_event_loop(server_sockfd);
+
+	LQ_NOTICE("waitting for queue jobs processing");
+    lq_queue_t *queue;
+    while ((queue = lq_get_queue()) != NULL && queue->num > 0) {
+        sleep(1);
+        LQ_NOTICE("stopping...");
+    }
+
+    unlink("localq.sock");
+    LQ_NOTICE("done.");
 
 	return 0;
 }
