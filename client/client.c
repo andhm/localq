@@ -131,7 +131,7 @@ int main() {
 static void build_time_str(int total_sec, char *buf) {
 	int sec = total_sec%60;
 	int min = total_sec/60%60;
-	int hour = total_sec/3600%3600;
+	int hour = total_sec/3600%24;
 	int day = total_sec/86400%86400;
 	sprintf(buf, "%d天%d时%d分%d秒", day, hour, min, sec);
 }
