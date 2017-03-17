@@ -26,13 +26,13 @@ typedef struct lq_queue_s {
 } lq_queue_t;
 
 typedef struct lq_queue_data_s {
-    int16_t size;
+    size_t size;
     void *data;
     struct lq_queue_data_s *prev;
     struct lq_queue_data_s *next;
 } lq_queue_data_t;
 
-LQ_RET_T lq_enqueue(void *data, int16_t size);
+LQ_RET_T lq_enqueue(void *data, size_t size);
 lq_queue_data_t *lq_dequeue();
 lq_queue_t *lq_get_queue();
 void lq_queue_init(size_t max);

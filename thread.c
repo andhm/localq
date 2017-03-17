@@ -80,7 +80,7 @@ void *lq_thread_processor(void *arg) {
         lq_queue_data_t *queue_data;
         if ((queue_data = lq_dequeue()) != NULL) {
             dq_failed = 0;
-            LQ_NOTICE("queue data: thread[%lu], size[%d], data[%s]", pthread_self(), queue_data->size, (char *)queue_data->data);
+            LQ_NOTICE("queue data: thread[%lu], size[%lu], data[%s]", pthread_self(), queue_data->size, (char *)queue_data->data);
             LQ_DEBUG("queue_handler start.");
             double process_start = last_active_time = lq_time();
             LQ_RET_T ret = g_thread.queue_handler(queue_data);

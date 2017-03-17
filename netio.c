@@ -12,7 +12,7 @@
 #include "connection.h"
 
 static inline void lq_recv_data_process(lq_event_t *event);
-static inline char *lq_send_data_process(lq_event_t *event, int *send_size);
+static inline char *lq_send_data_process(lq_event_t *event, size_t *send_size);
 
 void lq_accept(int fd, void *arg) {
     struct sockaddr_un sun;
@@ -38,19 +38,22 @@ void lq_accept(int fd, void *arg) {
 
 void lq_recv(int fd, void *arg) {
    lq_event_t *event = (lq_event_t*)arg;
-   int len, body_size;
+   int len;
+   size_t need_read_size = PROTO_HEAD_SIZE, total_read_size = PROTO_HEAD_SIZE, offset = 0;
    lq_proto_t header = {0};
    unsigned read_head = 0;
    while (1) {
+        memset(&header, 0, sizeof(lq_proto_t));
         if (!read_head) {
-            len = recv(fd, &header, PROTO_HEAD_SIZE, 0);
+            len = recv(fd, (char*)&header+offset, need_read_size, 0);
         } else {
-            len = recv(fd, event->data, body_size, 0);
+            len = recv(fd, (char*)event->data+offset, need_read_size, 0);
         }
 
         if (len < 0) {
             if (errno == EAGAIN) {
                 LQ_NOTICE("recv() again");
+                continue;
             } else {
                 LQ_WARNING("recv() error. errno[%d], error[%s]", errno, strerror(errno));
             }
@@ -65,6 +68,12 @@ void lq_recv(int fd, void *arg) {
 
         } else {
             LQ_DEBUG("read ok. fd[%d], readsize[%d]", fd, len);
+            if (need_read_size != len && need_read_size != 0) {
+                LQ_NOTICE("need read again. fd[%d], len[%d], need_read_size[%lu], total_read_size[%lu]", fd, len, need_read_size, total_read_size);
+                need_read_size -= len;
+                offset += len;
+                continue;
+            }
             if (!read_head) {
                 LQ_DEBUG("read head ok. fd[%d], cmd[%d], version[%d], length[%d]", fd, header.cmd, header.version, header.length);
                 if (header.version == PROTO_VERSION_1) {
@@ -79,17 +88,17 @@ void lq_recv(int fd, void *arg) {
                         return;
                     }
                 } else {
-                    LQ_NOTICE("read head length invalid. length[%d]", header.length);
+                    LQ_NOTICE("read head version invalid. cmd[%d], version[%d], length[%d], len[%d]", header.cmd, header.version, header.length, len);
                     lq_event_del(event);
                     return;
                 }
                 
-                body_size = header.length;
+                need_read_size = total_read_size = header.length;
                 read_head = 1;
 
             } else {
-                LQ_DEBUG("read body ok. fd[%d], len[%d], body_size[%d]", fd, len, body_size);
-                event->len = len;
+                LQ_DEBUG("read body ok. fd[%d], total_read_size[%lu]", fd, total_read_size);
+                event->len = total_read_size;
                 
                 lq_recv_data_process(event);
 
@@ -102,45 +111,57 @@ void lq_recv(int fd, void *arg) {
     
 void lq_send(int fd, void *arg) {
     lq_event_t *event = (lq_event_t *)arg;
-    int send_size = 0;
+    size_t send_size = 0;
     char *send_buf = lq_send_data_process(event, &send_size);
 
     int len;
-    len = send(fd, send_buf, send_size, 0);
+    size_t need_write_size = send_size, offset = 0;
 
-    LQ_FREE(send_buf);
+    while (1) {
+        len = send(fd, send_buf, need_write_size, 0);
+        if (len < 0) {
+            if (errno == EAGAIN) {
+                LQ_NOTICE("send() again");
+                continue;
+            } else {
+                LQ_WARNING("send() error. errno[%d], error[%s]", errno, strerror(errno));
+            }
 
-    if (len < 0) {
-        if (errno == EAGAIN) {
-            LQ_NOTICE("send() again");
-        } else {
-            LQ_WARNING("send() error. errno[%d], error[%s]", errno, strerror(errno));
-        }
-
-        lq_event_del(event);
-        return;
-
-    } else if (len == 0) {
-        LQ_DEBUG("close by client. fd[%d]", fd);
-        lq_event_del(event);
-        return;
-
-    } else {
-        LQ_DEBUG("send ok. fd[%d], len[%d], send_size[%d], body_size[%d]", fd, len, send_size, event->len);
-        if (event->connection->will_close) {
-            LQ_NOTICE("too many connections. close now, fd[%d]", fd);
             lq_event_del(event);
+            LQ_FREE(send_buf);
+            return;
+
+        } else if (len == 0) {
+            LQ_DEBUG("close by client. fd[%d]", fd);
+            lq_event_del(event);
+            LQ_FREE(send_buf);
+            return;
+
+        } else {
+            if (need_write_size != len && need_write_size != 0) {
+                LQ_NOTICE("need write again. fd[%d], len[%d], need_write_size[%lu]", fd, len, need_write_size);
+                need_write_size -= len;
+                offset += len;
+                continue;
+            }
+            LQ_DEBUG("send ok. fd[%d], len[%d], send_size[%d], body_size[%d]", fd, len, send_size, event->len);
+            if (event->connection->will_close) {
+                LQ_NOTICE("too many connections. close now, fd[%d]", fd);
+                lq_event_del(event);
+                LQ_FREE(send_buf);
+                return;
+            }
+            if (event->data) {
+                LQ_FREE(event->data);
+                event->data = NULL;
+            }
+            // lq_event_set(event, fd, lq_recv, event->data, event, 0);
+            event->handler = lq_recv;
+            event->len = 0;
+            lq_event_add(event, EPOLLIN);
+            LQ_FREE(send_buf);
             return;
         }
-        if (event->data) {
-            LQ_FREE(event->data);
-            event->data = NULL;
-        }
-        // lq_event_set(event, fd, lq_recv, event->data, event, 0);
-        event->handler = lq_recv;
-        event->len = 0;
-        lq_event_add(event, EPOLLIN);
-        return;
     }
 }
 
@@ -150,8 +171,9 @@ static inline void lq_recv_data_process(lq_event_t *event) {
     if (head.version != PROTO_VERSION_1 || 
         (head.cmd != PROTO_CMD_REQUEST && head.cmd != PROTO_CMD_STAT_REQUEST)) {
         lq_proto_resp_t *proto_resp = LQ_MALLOC(sizeof(lq_proto_resp_t));
+        memset(proto_resp, 0, sizeof(lq_proto_resp_t));
         char *error_msg = "not support";
-        strncpy(proto_resp->error_msg, error_msg, strlen(error_msg)+1);
+        strncpy(proto_resp->error_msg, error_msg, strlen(error_msg));
         proto_resp->error_no = LQ_ERR;
 
         event->len = sizeof(*proto_resp);
@@ -161,23 +183,24 @@ static inline void lq_recv_data_process(lq_event_t *event) {
     }
     if (head.cmd == PROTO_CMD_REQUEST) {
         lq_proto_resp_t *proto_resp = LQ_MALLOC(sizeof(lq_proto_resp_t));
+        memset(proto_resp, 0, sizeof(lq_proto_resp_t));
         char *error_msg = "ok";
         LQ_RET_T ret = LQ_OK;
         
         if (event->connection->will_close) {
             ret = LQ_ERR;
-            error_msg = "too many connections.";
+            error_msg = "too many connections";
         } else {
             // en queue
             ret = lq_enqueue(event->data, event->len);
             if (ret == LQ_ERR) {
-                error_msg = "reach max memory limit.";
+                error_msg = "reach max memory limit";
             }
             // thread
             lq_thread_create();
         }
         
-        strncpy(proto_resp->error_msg, error_msg, strlen(error_msg)+1);
+        strncpy(proto_resp->error_msg, error_msg, strlen(error_msg));
         proto_resp->error_no = ret;
 
         event->len = sizeof(*proto_resp);
@@ -219,7 +242,7 @@ static inline void lq_recv_data_process(lq_event_t *event) {
     }
 }
 
-static inline char *lq_send_data_process(lq_event_t *event, int *send_size) {
+static inline char *lq_send_data_process(lq_event_t *event, size_t *send_size) {
     *send_size = PROTO_HEAD_SIZE + event->len;
     char *send_buf = LQ_MALLOC(*send_size);
     lq_proto_t head;

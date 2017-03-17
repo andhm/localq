@@ -12,7 +12,7 @@
 #define PROTO_VERSION_1 1
 #define PROTO_HEAD_SIZE sizeof(struct lq_proto_s)
 
-#define PROTO_CMD_SHIFT         8
+#define PROTO_CMD_SHIFT         8L
 // COMMON
 #define PROTO_CMD_REQUEST       1
 #define PROTO_CMD_RESPONSE      (PROTO_CMD_REQUEST<<PROTO_CMD_SHIFT)
@@ -36,7 +36,7 @@ typedef struct lq_proto_s {
 } lq_proto_t;
 
 typedef struct lq_proto_resp_s {
-    signed error_no;
+    int8_t error_no;
     char error_msg[32];
 } lq_proto_resp_t;
 

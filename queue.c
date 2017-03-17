@@ -24,7 +24,7 @@ lq_queue_t *lq_get_queue() {
     return queue;
 }
 
-LQ_RET_T lq_enqueue(void *data, int16_t size) {
+LQ_RET_T lq_enqueue(void *data, size_t size) {
     pthread_mutex_lock(&g_queue_mutex);
     LQ_DEBUG("en_queue. size[%lu], num[%d]", g_queue.size, g_queue.num);
     if (g_queue.size + size > g_queue.max_size) {

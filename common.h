@@ -16,7 +16,7 @@
 #include <sys/un.h>
 #include <sys/time.h>
 
-#define LQ_RET_T	signed
+#define LQ_RET_T	int8_t
 #define LQ_OK		0
 #define LQ_ERR		-1
 

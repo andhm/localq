@@ -16,7 +16,8 @@ int lq_signals_init() {
     act.sa_handler = &lq_signals_handler;
     act.sa_flags |= SA_RESTART;
 
-    if (sigaction(SIGQUIT, &act, 0) < 0) {
+    if (sigaction(SIGQUIT, &act, 0) < 0 ||
+        sigaction(SIGINT, &act, 0) < 0) {
         LQ_WARNING("sigaction() failed. error[%s]", strerror(errno));
     }
 }
