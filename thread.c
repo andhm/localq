@@ -77,7 +77,7 @@ void *lq_thread_processor(void *arg) {
     int dq_failed = 0;
     double last_active_time = lq_time();
     while (1) {
-        lq_queue_data_t *queue_data;
+        lq_job_t *queue_data;
         if ((queue_data = lq_dequeue()) != NULL) {
             dq_failed = 0;
             LQ_NOTICE("queue data: thread[%lu], size[%lu], data[%s]", pthread_self(), queue_data->size, (char *)queue_data->data);
@@ -122,7 +122,7 @@ void *lq_thread_processor(void *arg) {
 
 LQ_RET_T lq_queue_processor(void *arg) {
     LQ_DEBUG("queue processor");
-    lq_queue_data_t *queue_data = (lq_queue_data_t *)arg;
+    lq_job_t *queue_data = (lq_job_t *)arg;
     int data_size = queue_data->size;
     int proto_req_size = sizeof(lq_proto_req_t);
     LQ_DEBUG("data_size[%d]", data_size);

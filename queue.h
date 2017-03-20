@@ -21,19 +21,19 @@ typedef struct lq_queue_s {
     size_t size;
     int32_t num;
     size_t max_size;
-    struct lq_queue_data_s *head;
-    struct lq_queue_data_s *tail;
+    struct lq_job_s *head;
+    struct lq_job_s *tail;
 } lq_queue_t;
 
-typedef struct lq_queue_data_s {
+typedef struct lq_job_s {
     size_t size;
     void *data;
-    struct lq_queue_data_s *prev;
-    struct lq_queue_data_s *next;
-} lq_queue_data_t;
+    struct lq_job_s *prev;
+    struct lq_job_s *next;
+} lq_job_t;
 
 LQ_RET_T lq_enqueue(void *data, size_t size);
-lq_queue_data_t *lq_dequeue();
+lq_job_t *lq_dequeue();
 lq_queue_t *lq_get_queue();
 void lq_queue_init(size_t max);
 

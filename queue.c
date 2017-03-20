@@ -32,7 +32,7 @@ LQ_RET_T lq_enqueue(void *data, size_t size) {
         pthread_mutex_unlock(&g_queue_mutex);
         return LQ_ERR;
     }
-    lq_queue_data_t *queue_data = LQ_MALLOC(sizeof(lq_queue_data_t));
+    lq_job_t *queue_data = LQ_MALLOC(sizeof(lq_job_t));
     if (queue_data == NULL) {
         LQ_WARNING("LQ_MALLOC() failed.");
         pthread_mutex_unlock(&g_queue_mutex);
@@ -57,7 +57,7 @@ LQ_RET_T lq_enqueue(void *data, size_t size) {
     return LQ_OK;
 }
 
-lq_queue_data_t *lq_dequeue() {
+lq_job_t *lq_dequeue() {
     pthread_mutex_lock(&g_queue_mutex);
     // LQ_DEBUG("de_queue. size[%lu], num[%d]", g_queue.size, g_queue.num);
     if (g_queue.num == 0) {
@@ -65,7 +65,7 @@ lq_queue_data_t *lq_dequeue() {
         pthread_mutex_unlock(&g_queue_mutex);
         return NULL;
     }
-    lq_queue_data_t *tail_data = g_queue.tail;
+    lq_job_t *tail_data = g_queue.tail;
     if (g_queue.tail->prev != NULL) {
         g_queue.tail->prev->next = NULL;
     }
