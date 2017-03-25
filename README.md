@@ -4,11 +4,14 @@ Local Queue - 高性能本地队列
 ## Installation
 ```shell
 make && make client
-
+```
 ## Requirement
+```shell
 epoll
+```shell
 
 ## Usage
+```shell
 1. push数据到队列
 a) cd client; ./client
 b) 在命令行输入任何想要push的字符串（不包括 status 和 quit）
@@ -37,3 +40,4 @@ b) 在命令行输入任何想要push的字符串（不包括 status 和 quit）
 
 > hello
 ps: push "hello" 到队列， status显示当前server状态， quit退出当前client
+```shell
